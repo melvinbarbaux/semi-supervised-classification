@@ -1,5 +1,3 @@
-# tests/test_cifar10_raw.py
-
 import pickle
 import numpy as np
 import pytest

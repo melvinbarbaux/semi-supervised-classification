@@ -1,13 +1,8 @@
 import numpy as np
 import pandas as pd
-import os
 from PIL import Image
-import pytest
 
-from ssl_bench.data.base import DataModule
-from ssl_bench.data.image import ImageDataModule
-from ssl_bench.data.text import TextDataModule
-from ssl_bench.data.tabular import TabularDataModule
+from ssl_bench.datamodule import DataModule, ImageDataModule, TextDataModule, TabularDataModule
 
 # 1. Test de la logique de split et reproductibilité
 def test_split_reproducible():
@@ -24,7 +19,9 @@ def test_split_reproducible():
 
     # Les splits doivent être identiques pour la même graine
     assert np.array_equal(xl1, xl2)
+    assert np.array_equal(yl1, yl2)
     assert np.array_equal(xu1, xu2)
+    assert np.array_equal(yu1, yu2)
     # Tailles correctes
     assert len(xl1) == int(0.3 * 10)
     assert len(xu1) == 10 - int(0.3 * 10)

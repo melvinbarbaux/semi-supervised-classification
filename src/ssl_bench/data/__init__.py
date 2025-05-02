@@ -1,9 +1,8 @@
 """
 Module Données : interfaces et points d’entrée génériques pour différents types de données
 """
-from .base import DataModule
-from .image import ImageDataModule
-from .text import TextDataModule
-from .tabular import TabularDataModule
+from ..datamodule.base import DataModule
+from .dataset_loader import DatasetLoader
+from .loaders.cifar10_raw import CIFAR10RawLoader
 
-__all__ = ["DataModule", "ImageDataModule", "TextDataModule", "TabularDataModule"]
+__all__ = ["DataModule", "DatasetLoader", "CIFAR10RawLoader"]

@@ -1,7 +1,7 @@
 import pickle
 import numpy as np
 from pathlib import Path
-from ssl_bench.data.base import DataModule
+from ssl_bench.datamodule.base import DataModule
 
 class CIFAR10RawLoader(DataModule):
     def __init__(self, batch_dir: str, **kwargs):
