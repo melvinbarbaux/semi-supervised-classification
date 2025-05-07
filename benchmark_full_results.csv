@@ -1,0 +1,5 @@
+dataset,model,method,fraction,seed,accuracy,n_labeled
+CIFAR10,RandomForestWrapper,SupervisedMethod,0.1,0,0.33026666666666665,5000
+CIFAR10,RandomForestWrapper,SelfTrainingMethod,0.1,0,0.3242888888888889,7205
+CIFAR10,SVMWrapper,SupervisedMethod,0.1,0,0.43448888888888887,5000
+CIFAR10,SVMWrapper,SelfTrainingMethod,0.1,0,0.4304222222222222,9514

@@ -16,6 +16,7 @@ pandas = ">=2.2.3,<3.0.0"
 torch = { version = ">=2.0.0,<3.0.0"}
 torchvision = { version = ">=0.15.0,<1.0.0"}
 pillow = "^11.2.1"
+click = "^8.1.8"
 
 [tool.poetry.extras]
 gpu = ["torch", "torchvision"]
