@@ -1,22 +1,30 @@
-# src/ssl_bench/methods/snnrce.py
-"""
-Implementation of SNNRCE: Self-training Nearest Neighbor Rule using Cut Edges
-Wang et al., Knowledge-Based Systems 23 (2010)
-Pseudo-code steps are included as comments corresponding to the original algorithm description.
-"""
 import numpy as np
 from copy import deepcopy
 from typing import Tuple, Optional
 from scipy.stats import norm
-
 from sklearn.neighbors import NearestNeighbors
+import logging
+
 from ssl_bench.methods.base import SemiSupervisedMethod
 from ssl_bench.models.base import BaseModel
+
+# Configure logger
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+if not logger.handlers:
+    ch = logging.StreamHandler()
+    ch.setLevel(logging.INFO)
+    fmt = logging.Formatter(
+        '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    )
+    ch.setFormatter(fmt)
+    logger.addHandler(ch)
+
 
 class SnnrceMethod(SemiSupervisedMethod):
     """
     SNNRCE: Self-training Nearest Neighbor Rule using Cut Edges
-    Combines NN classification, self-training, and cut-edge based editing.
+    Adapté pour images 4D + NearestNeighbors sur version aplanie.
     """
     def __init__(
         self,
@@ -25,12 +33,6 @@ class SnnrceMethod(SemiSupervisedMethod):
         alpha: float = 0.05,
         random_state: Optional[int] = None
     ):
-        """
-        :param base_model: classifier implementing train/predict/predict_proba
-        :param n_neighbors: neighborhood size for cut-edge calculations
-        :param alpha: significance level for label modification test
-        :param random_state: random seed
-        """
         self.base_model = deepcopy(base_model)
         self.n_neighbors = n_neighbors
         self.alpha = alpha
@@ -42,108 +44,121 @@ class SnnrceMethod(SemiSupervisedMethod):
         y_l: np.ndarray,
         X_u: np.ndarray
     ) -> Tuple[BaseModel, np.ndarray, np.ndarray]:
-        # Step 1: compute class‐proportions and N_max
+        logger.info("SNNRCE: démarrage")
+        # Vues 4D pour le modèle, 2D pour NN
+        L_x_4d = X_l.copy()
+        U_x_4d = X_u.copy()
+        L_x_flat = L_x_4d.reshape(len(L_x_4d), -1)
+        U_x_flat = U_x_4d.reshape(len(U_x_4d), -1)
+        logger.info(f"SNNRCE: Labled shape={L_x_4d.shape}, Unlabeled shape={U_x_4d.shape}")
+
+        rng = np.random.RandomState(self.random_state)
         classes, counts = np.unique(y_l, return_counts=True)
         total_L = len(y_l)
         ratio = {c: counts[i] / total_L for i, c in enumerate(classes)}
-        N_max = {c: int(ratio[c] * len(X_u)) for c in classes}
+        N_max = {c: int(ratio[c] * len(U_x_flat)) for c in classes}
+        logger.info(f"SNNRCE: N_max par classe = {N_max}")
 
-        # Initialize L and U
-        L_x, L_y = X_l.copy(), y_l.copy()
-        U_x = X_u.copy()
+        L_y = y_l.copy()
 
-        rng = np.random.RandomState(self.random_state)
-
-        # Step 2: initial NN training on L
+        # Étape 1: bootstrap initial
         model = deepcopy(self.base_model)
-        model.train(L_x, L_y)
+        model.train(L_x_4d, L_y)
+        logger.info("SNNRCE: entraînement initial effectué")
 
-        # Step 3: initial cut-edge based labeling
-        nn = NearestNeighbors(n_neighbors=self.n_neighbors + 1)
-        nn.fit(L_x)
-        # find neighbors for U
-        nbrs_U = nn.kneighbors(U_x, return_distance=False)[:,1:]
-        labeled_mask = np.zeros(len(U_x), dtype=bool)
-        new_labels = np.full(len(U_x), -1, dtype=int)
+        # Étape 2: cut-edge initial
+        nn0 = NearestNeighbors(n_neighbors=self.n_neighbors + 1)
+        nn0.fit(L_x_flat)
+        nbrs_U = nn0.kneighbors(U_x_flat, return_distance=False)[:,1:]
+        mask0 = np.zeros(len(U_x_flat), dtype=bool)
+        new0 = np.full(len(U_x_flat), -1, dtype=int)
 
         for i, nbrs in enumerate(nbrs_U):
-            # distances & weights
-            dists = np.linalg.norm(U_x[i] - L_x[nbrs], axis=1)
-            weights = 1.0 / (1.0 + dists)
-            # cut‐edge ratio R_i
-            pred_i = model.predict(U_x[i:i+1])[0]
-            mismatch = L_y[nbrs] != pred_i
-            R_i = weights[mismatch].sum() / (weights.sum() + 1e-12)
-            if R_i == 0.0:
-                # label by NN
-                labeled_mask[i] = True
-                new_labels[i] = pred_i
+            d = np.linalg.norm(U_x_flat[i] - L_x_flat[nbrs], axis=1)
+            w = 1.0 / (1.0 + d)
+            p = model.predict(U_x_4d[i:i+1])[0]
+            R = w[(L_y[nbrs] != p)].sum() / (w.sum() + 1e-12)
+            if R == 0.0:
+                mask0[i] = True
+                new0[i] = p
 
-        if labeled_mask.any():
-            L_x = np.vstack([L_x, U_x[labeled_mask]])
-            L_y = np.concatenate([L_y, new_labels[labeled_mask]])
-            U_x = U_x[~labeled_mask]
+        added0 = mask0.sum()
+        logger.info(f"SNNRCE: cut-edge initial—ajout de {added0} samples")
+        if added0 > 0:
+            L_x_4d = np.vstack([L_x_4d, U_x_4d[mask0]])
+            L_y    = np.concatenate([L_y, new0[mask0]])
+            U_x_4d = U_x_4d[~mask0]
+            L_x_flat = L_x_4d.reshape(len(L_x_4d), -1)
+            U_x_flat = U_x_4d.reshape(len(U_x_4d), -1)
 
-        # Step 4: self‐training with dynamic confidence until N_max reached
+        # Étape 3: self-training jusqu’à N_max
+        iteration = 0
         while True:
+            iteration += 1
             model = deepcopy(self.base_model)
-            model.train(L_x, L_y)
-            if len(U_x) == 0:
+            model.train(L_x_4d, L_y)
+            if len(U_x_flat) == 0:
+                logger.info("SNNRCE: plus d'exemples non-étiquetés, arrêt")
                 break
 
-            # compute confidence = exp(−distance to nearest neighbor)
-            dists, idxs = nn.kneighbors(U_x, n_neighbors=1)
-            confidences = np.exp(-dists.flatten())
+            # confiance via distance NN
+            nn1 = NearestNeighbors(n_neighbors=1)
+            nn1.fit(L_x_flat)
+            dists, _ = nn1.kneighbors(U_x_flat, return_distance=True)
+            conf = np.exp(-dists.flatten())
+            order = np.argsort(conf)[::-1]
+            preds = model.predict(U_x_4d)
 
-            added_any = False
-            # sort indices descending by confidence
-            order = np.argsort(confidences)[::-1]
+            to_take = []
             for c in classes:
                 need = N_max[c] - np.sum(L_y == c)
-                if need <= 0:
-                    continue
-                # find top‐confidence points predicted as c
-                preds = model.predict(U_x)
-                sel = [i for i in order if preds[i] == c]
-                to_take = sel[:need]
-                if not to_take:
-                    continue
-                L_x = np.vstack([L_x, U_x[to_take]])
-                L_y = np.concatenate([L_y, np.full(len(to_take), c)])
-                mask = np.ones(len(U_x), dtype=bool)
-                mask[to_take] = False
-                U_x = U_x[mask]
-                added_any = True
-            if not added_any:
+                sel = [i for i in order if preds[i] == c][:max(0,need)]
+                to_take.extend(sel)
+
+            to_take = sorted(set(to_take))
+            logger.info(f"SNNRCE: itération {iteration}, to_take={len(to_take)}")
+            if not to_take:
+                logger.info("SNNRCE: aucun nouvel ajout, arrêt self-training")
                 break
 
-        # Step 5: label modification via cut‐edge distribution on final L
-        nn_L = NearestNeighbors(n_neighbors=self.n_neighbors + 1)
-        nn_L.fit(L_x)
-        nbrs_L = nn_L.kneighbors(L_x, return_distance=False)[:,1:]
-        R_vals = []
-        for i, nbrs in enumerate(nbrs_L):
-            dists = np.linalg.norm(L_x[i] - L_x[nbrs], axis=1)
-            weights = 1.0 / (1.0 + dists)
-            mismatch = L_y[nbrs] != L_y[i]
-            R_vals.append(weights[mismatch].sum() / (weights.sum() + 1e-12))
-        R_vals = np.array(R_vals)
-        mu, sigma = R_vals.mean(), R_vals.std()
-        crit = mu + norm.ppf(1 - self.alpha/2) * sigma
-        for i, R_i in enumerate(R_vals):
-            if R_i > crit:
-                # flip label to the other class
-                alt = [cls for cls in classes if cls != L_y[i]][0]
-                L_y[i] = alt
+            new_labels = preds[to_take]
+            L_x_4d = np.vstack([L_x_4d, U_x_4d[to_take]])
+            L_y    = np.concatenate([L_y, new_labels])
+            mask = np.ones(len(U_x_flat), dtype=bool)
+            mask[to_take] = False
+            U_x_4d = U_x_4d[mask]
+            L_x_flat = L_x_4d.reshape(len(L_x_4d), -1)
+            U_x_flat = U_x_4d.reshape(len(U_x_4d), -1)
 
-        # Step 6: final classification of remaining U
-        if len(U_x) > 0:
+        # Étape 4: édition finale (cut-edge)
+        nnL = NearestNeighbors(n_neighbors=self.n_neighbors + 1)
+        nnL.fit(L_x_flat)
+        nbrs_L = nnL.kneighbors(L_x_flat, return_distance=False)[:,1:]
+        Rv = []
+        for i, nbrs in enumerate(nbrs_L):
+            d = np.linalg.norm(L_x_flat[i] - L_x_flat[nbrs], axis=1)
+            w = 1.0 / (1.0 + d)
+            Rv.append(w[(L_y[nbrs] != L_y[i])].sum() / (w.sum() + 1e-12))
+        Rv = np.array(Rv)
+        mu, sigma = Rv.mean(), Rv.std()
+        crit = mu + norm.ppf(1 - self.alpha/2) * sigma
+        flips = 0
+        for i, Ri in enumerate(Rv):
+            if Ri > crit:
+                L_y[i] = [c for c in classes if c != L_y[i]][0]
+                flips += 1
+        logger.info(f"SNNRCE: édition finale—flip de {flips} labels")
+
+        # Étape 5: classification des restants
+        if len(U_x_flat) > 0:
             final = deepcopy(self.base_model)
-            final.train(L_x, L_y)
-            preds_U = final.predict(U_x)
-            L_x = np.vstack([L_x, U_x])
-            L_y = np.concatenate([L_y, preds_U])
+            final.train(L_x_4d, L_y)
+            pU = final.predict(U_x_4d)
+            L_x_4d = np.vstack([L_x_4d, U_x_4d])
+            L_y    = np.concatenate([L_y, pU])
+            logger.info(f"SNNRCE: classification finale de {len(pU)} restants")
         else:
             final = model
 
-        return final, L_x, L_y
+        logger.info(f"SNNRCE: terminé—total labelled = {len(L_y)}")
+        return final, L_x_4d, L_y

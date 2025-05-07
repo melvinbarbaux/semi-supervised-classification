@@ -42,6 +42,8 @@ class TorchModel(BaseModel):
         # Boucle d'entraînement
         for _ in range(self.epochs):
             for xb, yb in loader:
+                if xb.size(0) < 2:
+                    continue
                 xb, yb = xb.to(self.device), yb.to(self.device)
                 logits = self.net(xb)
                 loss = criterion(logits, yb)

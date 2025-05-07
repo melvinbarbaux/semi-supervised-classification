@@ -4,7 +4,7 @@ import torch.nn as nn
 import pytest
 
 from ssl_bench.models.sklearn import RandomForestWrapper, SVMWrapper
-from ssl_bench.models.torch import TorchModel
+from ssl_bench.models.torch_model import TorchModel
 
 class DummyNet(nn.Module):
     def __init__(self, input_dim, output_dim):
