@@ -1,4 +1,8 @@
-# src/ssl_bench/methods/dash.py
+""""
+Dash: Semi-Supervised Learning with Dynamic Thresholding 
+Xu et al, 2021
+"""
+
 import numpy as np
 import logging
 from copy import deepcopy
@@ -18,10 +22,6 @@ if not logger.handlers:
     logger.addHandler(ch)
 
 class DashMethod(SemiSupervisedMethod):
-    """
-    Dash: Semi-Supervised Learning with Dynamic Thresholding (Xu et al., ICML 2021)
-    Pseudo-code comments correspond to equations in the paper.
-    """
     def __init__(
         self,
         base_model: BaseModel,
@@ -49,6 +49,14 @@ class DashMethod(SemiSupervisedMethod):
         y_labeled: np.ndarray,
         X_unlabeled: np.ndarray
     ) -> Tuple[BaseModel, np.ndarray, np.ndarray]:
+        """
+        Run DASH algorithm.
+
+        :param X_labeled: labeled feature matrix
+        :param y_labeled: labeled targets
+        :param X_unlabeled: unlabeled feature matrix
+        :return: final model, augmented labeled X, augmented labeled y
+        """
         # Step 1: Warm-up - initial training on labeled data L
         model = deepcopy(self.base_model)
         L_X = X_labeled.copy()
@@ -63,6 +71,7 @@ class DashMethod(SemiSupervisedMethod):
 
         # U = pool of unlabeled samples
         U = X_unlabeled.copy()
+        logger.info(f"DASH start: |L|={len(L_y)}, |U|={len(U)}, C={self.C}, gamma={self.gamma}, rho_min={self.rho_min}")
 
         # Step 3: Selection iterations t = 1..T
         for t in range(1, self.max_iter + 1):
@@ -77,6 +86,7 @@ class DashMethod(SemiSupervisedMethod):
 
             # 3.3 Select indices where loss <= rho_t
             idxs = np.where(losses_U <= rho_t)[0]
+            logger.info(f"DASH iter {t}: threshold={rho_t:.4f}, selected={len(idxs)}")
             if idxs.size == 0:
                 break
 
@@ -97,7 +107,7 @@ class DashMethod(SemiSupervisedMethod):
             # 3.6 Retrain model on augmented L
             model = deepcopy(self.base_model)
             model.train(L_X, L_y)
-            model.train(L_X, L_y)
 
+        logger.info(f"DASH completed: final |L|={len(L_y)}, added={len(L_y)-len(y_labeled)}, iters={t}")
         # Return final model and labeled pool
         return model, L_X, L_y

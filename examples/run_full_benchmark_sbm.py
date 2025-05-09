@@ -16,14 +16,13 @@ from ssl_bench.models.sklearn import RandomForestWrapper, SVMWrapper
 from ssl_bench.methods.supervised import SupervisedMethod
 from ssl_bench.methods.self_training import SelfTrainingMethod
 from ssl_bench.methods.setred import SetredMethod
-from ssl_bench.methods.snnrce import SnnrceMethod
 from ssl_bench.methods.tri_training import TriTrainingMethod
 from ssl_bench.methods.democratic_co_learning import DemocraticCoLearningMethod
 
 from ssl_bench.datamodule.graph.knn import KNNGraph
 from ssl_bench.datamodule.graph.epsilon import EpsilonGraph
 from ssl_bench.datamodule.graph.anchor import AnchorGraph
-from ssl_bench.methods.gfh import GFHFMethod
+from ssl_bench.methods.gfhf import GFHFMethod
 
 
 def main():

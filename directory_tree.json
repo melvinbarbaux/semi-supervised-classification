@@ -1,0 +1,74 @@
+{
+    "README.md": null,
+    "benchmark_full_results.csv": null,
+    "directory_tree.json": null,
+    "docs": {},
+    "examples": {
+        "experiment_loop.py": null,
+        "graph_example.py": null,
+        "run_full_benchmark_sbm.py": null,
+        "run_full_benchmark_scm.py": null,
+        "run_minimal.py": null
+    },
+    "poetry.lock": null,
+    "pyproject.toml": null,
+    "src": {
+        "ssl_bench": {
+            "__init__.py": null,
+            "benchmark.py": null,
+            "cache.py": null,
+            "cli.py": null,
+            "datamodule": {
+                "__init__.py": null,
+                "base.py": null,
+                "graph": {
+                    "__init__.py": null,
+                    "anchor.py": null,
+                    "base.py": null,
+                    "epsilon.py": null,
+                    "knn.py": null
+                },
+                "image.py": null,
+                "tabular.py": null,
+                "text.py": null
+            },
+            "experiment.py": null,
+            "methods": {
+                "__init__.py": null,
+                "base.py": null,
+                "dash.py": null,
+                "democratic_co_learning.py": null,
+                "gfh.py": null,
+                "mssboost.py": null,
+                "self_training.py": null,
+                "setred.py": null,
+                "supervised.py": null,
+                "tri_training.py": null
+            },
+            "models": {
+                "base.py": null,
+                "sklearn.py": null,
+                "torch_model.py": null
+            },
+            "predictor.py": null,
+            "registry.py": null,
+            "transforms": {
+                "__init__.py": null,
+                "transformer.py": null
+            }
+        }
+    },
+    "tests": {
+        "fixtures": {},
+        "test_cifar10_raw.py": null,
+        "test_data_module.py": null,
+        "test_dataset_loader.py": null,
+        "test_experiment.py": null,
+        "test_methods.py": null,
+        "test_methods_supervised.py": null,
+        "test_models.py": null,
+        "test_predictor.py": null,
+        "test_smoke.py": null,
+        "test_transformer.py": null
+    }
+}

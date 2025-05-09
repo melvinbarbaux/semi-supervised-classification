@@ -19,7 +19,6 @@ from ssl_bench.data.loaders.cifar10_raw import CIFAR10RawLoader
 from ssl_bench.methods.supervised              import SupervisedMethod
 from ssl_bench.methods.self_training           import SelfTrainingMethod
 from ssl_bench.methods.setred                  import SetredMethod
-from ssl_bench.methods.snnrce                  import SnnrceMethod
 from ssl_bench.methods.tri_training            import TriTrainingMethod
 from ssl_bench.methods.democratic_co_learning  import DemocraticCoLearningMethod
 from ssl_bench.methods.mssboost                import MSSBoostMethod
@@ -31,7 +30,7 @@ from ssl_bench.models.torch_model                    import TorchModel
 from ssl_bench.datamodule.graph.knn     import KNNGraph
 from ssl_bench.datamodule.graph.epsilon import EpsilonGraph
 from ssl_bench.datamodule.graph.anchor  import AnchorGraph
-from ssl_bench.methods.gfh               import GFHFMethod
+from ssl_bench.methods.gfhf               import GFHFMethod
 
 
 def main():
@@ -74,7 +73,6 @@ def main():
         "supervised":    lambda m: SupervisedMethod(m),
         "self_training": lambda m: SelfTrainingMethod(m, threshold=0.8, max_iter=5),
         "setred":        lambda m: SetredMethod(m, theta=0.1, max_iter=10, n_neighbors=15, random_state=seed),
-        "snnrce":        lambda m: SnnrceMethod(m, n_neighbors=10, alpha=0.05, random_state=seed),
         "tri_training":  lambda m: TriTrainingMethod(m, random_state=seed),
         "democratic":    lambda m: DemocraticCoLearningMethod([m, m, m], alpha=0.05, random_state=seed),
         "mssboost":      lambda m: MSSBoostMethod(m, n_estimators=20, lambda_u=0.1),

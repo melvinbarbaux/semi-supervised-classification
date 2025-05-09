@@ -1,5 +1,3 @@
-# src/ssl_bench/methods/supervised.py
-
 import logging
 from copy import deepcopy
 from typing import Tuple, Optional

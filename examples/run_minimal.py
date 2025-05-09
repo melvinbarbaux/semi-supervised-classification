@@ -11,7 +11,6 @@ from ssl_bench.models.sklearn import RandomForestWrapper
 from ssl_bench.methods.supervised import SupervisedMethod
 from ssl_bench.methods.self_training import SelfTrainingMethod
 from ssl_bench.methods.setred import SetredMethod
-from ssl_bench.methods.snnrce import SnnrceMethod
 from ssl_bench.methods.tri_training import TriTrainingMethod
 from ssl_bench.methods.democratic_co_learning import DemocraticCoLearningMethod
 from ssl_bench.methods.mssboost import MSSBoostMethod
@@ -96,7 +95,6 @@ def main():
         ("supervised",    SupervisedMethod),
         ("self_training", SelfTrainingMethod),
         ("setred",        SetredMethod),
-        ("snnrce",        SnnrceMethod),
         ("tri_training",  TriTrainingMethod),
         ("democratic",    DemocraticCoLearningMethod),
         ("dash",          DashMethod),
@@ -115,11 +113,6 @@ def main():
                     deepcopy(base),
                     theta=0.1, max_iter=5,
                     pool_size=None, n_neighbors=10, random_state=42
-                )
-            elif name == "snnrce":
-                method = MethodCls(
-                    deepcopy(base),
-                    n_neighbors=10, alpha=0.05, random_state=42
                 )
             elif name == "tri_training":
                 method = MethodCls(deepcopy(base))
