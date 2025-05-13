@@ -15,6 +15,8 @@ from ssl_bench.methods.tri_training import TriTrainingMethod
 from ssl_bench.methods.democratic_co_learning import DemocraticCoLearningMethod
 from ssl_bench.methods.mssboost import MSSBoostMethod
 from ssl_bench.methods.dash import DashMethod
+from ssl_bench.methods.ebsa import EBSAMethod
+from ssl_bench.methods.ttadec import TTADECMethod
 
 # Torch wrapper & network
 import torch.nn as nn
@@ -98,7 +100,9 @@ def main():
         ("tri_training",  TriTrainingMethod),
         ("democratic",    DemocraticCoLearningMethod),
         ("dash",          DashMethod),
-        ("mssboost",      MSSBoostMethod),
+#        ("mssboost",      MSSBoostMethod),
+        ("ebsa",          EBSAMethod),
+        ("ttadec",        TTADECMethod),
     ]
 
     # 4) Run
@@ -127,8 +131,12 @@ def main():
             elif name == "mssboost":
                 method = MethodCls(
                     deepcopy(base),
-                    n_estimators=20, lambda_u=0.1
+                    n_estimators=2, lambda_u=0.1
                 )
+            elif name == "ebsa":
+                method = MethodCls(deepcopy(base))  # add ebsa-specific params if any
+            elif name == "ttadec":
+                method = MethodCls(deepcopy(base))  # add ttadec-specific params if any
             else:
                 method = MethodCls(deepcopy(base))
 

@@ -8,6 +8,11 @@ from .tri_training import TriTrainingMethod
 from .democratic_co_learning import DemocraticCoLearningMethod
 from .dash import DashMethod
 from .mssboost import MSSBoostMethod
+from .poisson_learning import PoissonLearningMethod
+from .gfhf import GFHFMethod
+from .ebsa import EBSAMethod
+from .ttadec import TTADECMethod
+
 
 __all__ = [
     "SemiSupervisedMethod",
@@ -17,5 +22,9 @@ __all__ = [
     "TriTrainingMethod",
     "DemocraticCoLearningMethod",
     "DashMethod",
-    "MSSBoostMethod"
+    "MSSBoostMethod",
+    "EBSAMethod",
+    "TTADECMethod"
+    "GFHFMethod",
+    "PoissonLearningMethod",
 ]

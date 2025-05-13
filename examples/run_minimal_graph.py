@@ -1,5 +1,3 @@
-# examples/graph_example.py
-
 import warnings
 import numpy as np
 from sklearn.preprocessing import StandardScaler
@@ -8,7 +6,8 @@ from ssl_bench.data.loaders.cifar10_raw import CIFAR10RawLoader
 from ssl_bench.datamodule.graph.knn import KNNGraph
 from ssl_bench.datamodule.graph.epsilon import EpsilonGraph
 from ssl_bench.datamodule.graph.anchor import AnchorGraph
-from ssl_bench.methods.gfh import GFHFMethod
+from ssl_bench.methods.gfhf import GFHFMethod
+from ssl_bench.methods.poisson_learning import PoissonLearningMethod
 
 warnings.filterwarnings("ignore", category=RuntimeWarning)
 
@@ -34,7 +33,7 @@ def sample_per_class(
 
 
 def main():
-    print("🚀 Lancement de graph_example.py …")
+    print("🚀 Lancement de run_minimal_graph.py …")
 
     # 1) Charger un petit sous-ensemble de CIFAR-10
     loader = CIFAR10RawLoader(batch_dir="data/raw/cifar-10-batches-py")
@@ -72,12 +71,21 @@ def main():
     }
 
     for name, builder in builders.items():
-        # Construire le graphe et lancer GFHF
+        print(f"--- GFHF via {name:<15s} ---")
         gf_method = GFHFMethod(graph_builder=builder)
-        model, _, _ = gf_method.run(X_l, y_l, X_u)
-        preds = model.predict(X_u)
-        acc = (preds == y_u).mean()
-        print(f"GFHF via {name:<15s} → accuracy on U = {acc:.2f}")
+        model_gf, _, _ = gf_method.run(X_l, y_l, X_u)
+        preds_gf = model_gf.predict(X_u)
+        acc_gf = (preds_gf == y_u).mean()
+        print(f"Accuracy GFHF on U = {acc_gf:.2f}\n")
+
+        # Poisson Learning
+        print(f"--- Poisson Learning via {name:<15s} ---")
+        pl_method = PoissonLearningMethod(graph_builder=builder)
+        model_pl, _, _ = pl_method.run(X_l, y_l, X_u)
+        preds_pl = model_pl.predict(X_u)
+        acc_pl = (preds_pl == y_u).mean()
+        print(f"Accuracy Poisson on U = {acc_pl:.2f}\n")
+
 
 if __name__ == "__main__":
     main()
