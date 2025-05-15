@@ -30,7 +30,8 @@ class DemocraticEnsemble(BaseModel):
         weights: List[float],
         model_indices: List[np.ndarray],
         instances_index: np.ndarray,
-        model_index_map: List[np.ndarray]
+        model_index_map: List[np.ndarray],
+        verbose: bool = False
     ):
         super().__init__()
         self.learners = learners
@@ -38,6 +39,7 @@ class DemocraticEnsemble(BaseModel):
         self.model_indices = model_indices
         self.instances_index = instances_index
         self.model_index_map = model_index_map
+        self.verbose = verbose
 
     def train(self, X, y, X_u=None):
         # Already trained during run
@@ -66,12 +68,14 @@ class DemocraticCoLearningMethod(SemiSupervisedMethod):
         *,
         alpha: float = 0.05,
         random_state: Any = None,
+        verbose: bool = False,
         **kwargs
     ):
         super().__init__(learners[0], **kwargs)
         self.learners = [deepcopy(l) for l in learners]
         self.alpha = alpha
         self.rng = np.random.RandomState(random_state)
+        self.verbose = verbose
 
     def run(
         self,
@@ -98,7 +102,8 @@ class DemocraticCoLearningMethod(SemiSupervisedMethod):
             pred = clf.predict(Xi)
             errors[i] = (pred != yi).sum()
         nL = len(labeled_idx)
-        logger.info(f"Democratic start: |L|={nL}, |U|={U0}, M={M}")
+        if self.verbose:
+            logger.info(f"Democratic start: |L|={nL}, |U|={U0}, M={M}")
 
         # 3) Compute 95% CI–based confidence weights
         weights = []
@@ -108,7 +113,8 @@ class DemocraticCoLearningMethod(SemiSupervisedMethod):
             delta = norm.ppf(1 - self.alpha/2) * np.sqrt(pi*(1-pi)/nL)
             lo, hi = max(0, pi-delta), min(1, pi+delta)
             weights.append((lo + hi) / 2)
-        logger.info(f"Democratic weights: {weights}")
+        if self.verbose:
+            logger.info(f"Democratic weights: {weights}")
 
         # 4) Iterative pseudo-labeling & retraining
         changed = True
@@ -171,7 +177,8 @@ class DemocraticCoLearningMethod(SemiSupervisedMethod):
             to_remove = np.unique(np.concatenate(prop_idx)) if any(prop_idx) else np.array([], dtype=int)
             unlabeled_idx = np.setdiff1d(unlabeled_idx, to_remove)
 
-            logger.info(f"Democratic iter: changed={changed}, remaining U={len(unlabeled_idx)}")
+            if self.verbose:
+                logger.info(f"Democratic iter: changed={changed}, remaining U={len(unlabeled_idx)}")
 
         # 5) Build final index mappings
         instances_index = np.unique(np.concatenate(Li_idx))
@@ -193,5 +200,6 @@ class DemocraticCoLearningMethod(SemiSupervisedMethod):
         final_X = full_X[instances_index]
         final_y = full_y[instances_index].astype(int)
 
-        logger.info(f"Democratic completed: labeled={len(instances_index)}, classifiers={M}")
+        if self.verbose:
+            logger.info(f"Democratic completed: labeled={len(instances_index)}, classifiers={M}")
         return final_model, final_X, final_y

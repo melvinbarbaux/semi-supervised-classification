@@ -24,7 +24,8 @@ class SelfTrainingMethod(SemiSupervisedMethod):
         self,
         base_model: BaseModel,
         threshold: float = 0.8,
-        max_iter: int = 5
+        max_iter: int = 5,
+        verbose: bool = False
     ):
         """
         :param base_model: classifier providing train / predict / predict_proba
@@ -34,6 +35,7 @@ class SelfTrainingMethod(SemiSupervisedMethod):
         self.base_model = deepcopy(base_model)
         self.threshold = threshold
         self.max_iter = max_iter
+        self.verbose = verbose
 
     def run(
         self,
@@ -52,7 +54,8 @@ class SelfTrainingMethod(SemiSupervisedMethod):
         U_X = X_u.copy()
         h = deepcopy(self.base_model)
 
-        logger.info(f"SelfTraining start: |L|={len(L_y)}, |U|={len(U_X)}, thr={self.threshold}")
+        if self.verbose:
+            logger.info(f"SelfTraining start: |L|={len(L_y)}, |U|={len(U_X)}, thr={self.threshold}")
 
         # 1..max_iter:
         for it in range(1, self.max_iter + 1):
@@ -70,7 +73,8 @@ class SelfTrainingMethod(SemiSupervisedMethod):
             # 3) Select indices above threshold
             sel = np.where(confidences >= self.threshold)[0]
             if sel.size == 0:
-                logger.info(f"SelfTraining: iteration {it}, no examples ≥ threshold, stopping")
+                if self.verbose:
+                    logger.info(f"SelfTraining: iteration {it}, no examples >= threshold, stopping")
                 break
 
             # 4) Add pseudo-labels to L, remove from U
@@ -80,8 +84,10 @@ class SelfTrainingMethod(SemiSupervisedMethod):
             L_y = np.concatenate([L_y, new_y])
             U_X = np.delete(U_X, sel, axis=0)
 
-            logger.info(f"Iter {it}: added {len(sel)} pseudo-labels → |L|={len(L_y)}, |U|={len(U_X)}")
+            if self.verbose:
+                logger.info(f"Iter {it}: added {len(sel)} pseudo-labels → |L|={len(L_y)}, |U|={len(U_X)}")
 
-        logger.info(f"SelfTraining end: |L|={len(L_y)}, |U|={len(X_l)} (added {len(L_y) - len(X_l)}), it={it}")
+        if self.verbose:
+            logger.info(f"SelfTraining end: |L|={len(L_y)}, |U|={len(X_l)} (added {len(L_y) - len(X_l)}), it={it}")
 
         return h, L_X, L_y

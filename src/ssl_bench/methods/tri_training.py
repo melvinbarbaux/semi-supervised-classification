@@ -28,13 +28,15 @@ class TriTrainingEnsemble(BaseModel):
         classifiers: List[BaseModel],
         model_indices: List[np.ndarray],
         instances_index: np.ndarray,
-        model_index_map: List[np.ndarray]
+        model_index_map: List[np.ndarray],
+        verbose: bool = False
     ):
         super().__init__()
         self.classifiers = classifiers
         self.model_indices = model_indices
         self.instances_index = instances_index
         self.model_index_map = model_index_map
+        self.verbose = verbose
 
     def train(self, X, y, X_u=None):
         # Already trained during run
@@ -56,11 +58,13 @@ class TriTrainingMethod(SemiSupervisedMethod):
         base_model: Any,
         *,
         random_state: Any = None,
-        **kwargs
+        verbose: bool = False,
+        **kwargs,
     ):
         super().__init__(base_model, **kwargs)
         self.base_model = deepcopy(base_model)
         self.random_state = random_state
+        self.verbose = verbose
 
     def run(
         self,
@@ -88,7 +92,8 @@ class TriTrainingMethod(SemiSupervisedMethod):
             clf.train(L_X[idx], L_y[idx])
             h.append(clf)
             model_indices.append(labeled_idx[idx].copy())
-        logger.info(f"TriTraining start: |L|={len(L_y)}, |U|={len(U_X)}")
+        if self.verbose:
+            logger.info(f"TriTraining start: |L|={len(L_y)}, |U|={len(U_X)}")
 
         # 3) Iterative labeling
         updated = True
@@ -149,7 +154,8 @@ class TriTrainingMethod(SemiSupervisedMethod):
                     l_prev[i] = sel.size
                     model_indices[i] = np.concatenate([model_indices[i], new_idx])
                     updated = True
-            logger.info(f"TriTraining iteration: updated={updated}, remaining U={U_X.shape[0]}")
+            if self.verbose:
+                logger.info(f"TriTraining iteration: updated={updated}, remaining U={U_X.shape[0]}")
 
         # 4) Build indices mapping
         instances_index = np.unique(np.concatenate(model_indices))
@@ -160,5 +166,6 @@ class TriTrainingMethod(SemiSupervisedMethod):
 
         # 5) Final ensemble
         final_model = TriTrainingEnsemble(h, model_indices, instances_index, model_index_map)
-        logger.info(f"TriTraining completed: final |L|={len(L_y)}, classifiers=3")
+        if self.verbose:
+            logger.info(f"TriTraining completed: final |L|={len(L_y)}, classifiers=3")
         return final_model, L_X, L_y

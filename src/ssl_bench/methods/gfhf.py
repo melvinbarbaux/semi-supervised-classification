@@ -8,6 +8,12 @@ from ssl_bench.datamodule.graph.base import GraphBuilder
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
+if not logger.handlers:
+    ch = logging.StreamHandler()
+    ch.setLevel(logging.INFO)
+    fmt = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    ch.setFormatter(fmt)
+    logger.addHandler(ch)
 
 class GFHFModel(BaseModel):
     """
@@ -46,9 +52,10 @@ class GFHFMethod(SemiSupervisedMethod):
     Builds a graph, computes the combinatorial Laplacian, solves the harmonic
     solution for unlabeled nodes via closed-form linear system.
     """
-    def __init__(self, graph_builder: GraphBuilder):
+    def __init__(self, graph_builder: GraphBuilder, verbose: bool = False):
         super().__init__(None)
         self.graph_builder = graph_builder
+        self.verbose = verbose
 
     def run(
         self,
@@ -61,7 +68,8 @@ class GFHFMethod(SemiSupervisedMethod):
         n_l = X_l.shape[0]
         n_u = X_u.shape[0]
 
-        logger.info(f"GFHF start: |L|={n_l}, |U|={n_u}")
+        if self.verbose:
+            logger.info(f"GFHF start: |L|={n_l}, |U|={n_u}")
 
         # 2) Fit graph builder and get adjacency W
         self.graph_builder.fit(X_all)
@@ -96,5 +104,6 @@ class GFHFMethod(SemiSupervisedMethod):
 
         model = GFHFModel(preds_all, n_labeled=n_l, classes=classes)
 
-        logger.info(f"GFHF completed: labeled used = {n_l}")
+        if self.verbose:
+            logger.info(f"GFHF completed: labeled used = {n_l}")
         return model, X_l, y_l

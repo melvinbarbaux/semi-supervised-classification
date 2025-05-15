@@ -28,7 +28,8 @@ class DashMethod(SemiSupervisedMethod):
         C: float = 1.0001,
         gamma: float = 1.1,
         rho_min: float = 0.0,
-        max_iter: int = 10
+        max_iter: int = 10,
+        verbose: Optional[bool] = False
     ):
         """
         :param base_model: modèle fournissant train / predict / predict_proba
@@ -42,6 +43,7 @@ class DashMethod(SemiSupervisedMethod):
         self.gamma = gamma
         self.rho_min = rho_min
         self.max_iter = max_iter
+        self.verbose = verbose
 
     def run(
         self,
@@ -71,7 +73,8 @@ class DashMethod(SemiSupervisedMethod):
 
         # U = pool of unlabeled samples
         U = X_unlabeled.copy()
-        logger.info(f"DASH start: |L|={len(L_y)}, |U|={len(U)}, C={self.C}, gamma={self.gamma}, rho_min={self.rho_min}")
+        if self.verbose:
+            logger.info(f"DASH start: |L|={len(L_y)}, |U|={len(U)}, C={self.C}, gamma={self.gamma}, rho_min={self.rho_min}")
 
         # Step 3: Selection iterations t = 1..T
         for t in range(1, self.max_iter + 1):
@@ -86,7 +89,8 @@ class DashMethod(SemiSupervisedMethod):
 
             # 3.3 Select indices where loss <= rho_t
             idxs = np.where(losses_U <= rho_t)[0]
-            logger.info(f"DASH iter {t}: threshold={rho_t:.4f}, selected={len(idxs)}")
+            if self.verbose:
+                logger.info(f"DASH iter {t}: threshold={rho_t:.4f}, selected={len(idxs)}")
             if idxs.size == 0:
                 break
 
@@ -108,6 +112,7 @@ class DashMethod(SemiSupervisedMethod):
             model = deepcopy(self.base_model)
             model.train(L_X, L_y)
 
-        logger.info(f"DASH completed: final |L|={len(L_y)}, added={len(L_y)-len(y_labeled)}, iters={t}")
+            if self.verbose:
+                logger.info(f"DASH completed: final |L|={len(L_y)}, added={len(L_y)-len(y_labeled)}, iters={t}")
         # Return final model and labeled pool
         return model, L_X, L_y

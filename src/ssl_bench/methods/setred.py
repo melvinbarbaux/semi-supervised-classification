@@ -30,7 +30,8 @@ class SetredMethod(SemiSupervisedMethod):
         pool_size: Optional[int] = None,
         n_neighbors: int = 10,
         perc_full: float = 0.9,
-        random_state: Optional[int] = None
+        random_state: Optional[int] = None,
+        verbose: Optional[bool] = False
     ):
         """
         :param base_model: classifier providing train / predict / predict_proba
@@ -48,6 +49,7 @@ class SetredMethod(SemiSupervisedMethod):
         self.n_neighbors = n_neighbors
         self.perc_full = perc_full
         self.random_state = random_state
+        self.verbose = verbose
 
     def run(
         self,
@@ -71,7 +73,8 @@ class SetredMethod(SemiSupervisedMethod):
         h = deepcopy(self.base_model)
         h.train(L_raw, L_y)
 
-        logger.info(f"SETRED start: |L|={len(L_y)}, |U|={len(U_feat)}, θ={self.theta}")
+        if self.verbose:
+            logger.info(f"SETRED start: |L|={len(L_y)}, |U|={len(U_feat)}, θ={self.theta}")
 
         # 3) Self-training + editing loop
         for it in range(1, self.max_iter + 1):
@@ -103,7 +106,8 @@ class SetredMethod(SemiSupervisedMethod):
                 cand_labels.append(np.full(k, cls, dtype=int))
 
             if not cand_feats:
-                logger.info(f"Iter {it}: no candidates")
+                if self.verbose:
+                    logger.info(f"Iter {it}: no candidates")
                 break
 
             cand_raws  = np.vstack(cand_raws)
@@ -127,10 +131,12 @@ class SetredMethod(SemiSupervisedMethod):
                     keep.append(j - start)
 
             if not keep:
-                logger.info(f"Iter {it}: none survive editing")
+                if self.verbose:
+                    logger.info(f"Iter {it}: no candidates survive editing")
                 break
 
-            logger.info(f"Iter {it}: {len(keep)}/{len(cand_feats)} kept")
+            if self.verbose:
+                logger.info(f"Iter {it}: {len(keep)}/{len(cand_feats)} kept")
 
             # 3d) add the kept candidates to L
             kept_raw  = cand_raws[keep]
@@ -151,7 +157,8 @@ class SetredMethod(SemiSupervisedMethod):
             h = deepcopy(self.base_model)
             h.train(L_raw, L_y)
 
-        logger.info(f"SETRED end: |L|={len(L_y)}, |U|={len(U_feat)} (added {len(L_y) - len(X_l)}), it={it}")
+        if self.verbose:
+            logger.info(f"SETRED end: |L|={len(L_y)}, |U|={len(U_feat)} (added {len(L_y) - len(X_l)}), it={it}")
 
         # 4) return final model and the enlarged labeled set (raw)
         return h, L_raw, L_y

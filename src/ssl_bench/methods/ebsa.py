@@ -1,14 +1,7 @@
-# src/ssl_bench/methods/ebsa.py
-
-"""
-EBSA: Fast semi-supervised self-training based on data editing
-Bing Lia, Jikui Wang, Zhengguo Yang, Jihai Yi & Feiping Nie
-"""
-
 import numpy as np
 import logging
 from copy import deepcopy
-from typing import Tuple, List
+from typing import Tuple
 
 from ssl_bench.methods.base import SemiSupervisedMethod
 from ssl_bench.models.base import BaseModel
@@ -29,7 +22,6 @@ class EBSAEnsemble(BaseModel):
         self.model = model
 
     def train(self, X, y, X_u=None):
-        # Entraînement déjà effectué dans run()
         return self
 
     def predict(self, X: np.ndarray) -> np.ndarray:
@@ -40,10 +32,11 @@ class EBSAEnsemble(BaseModel):
 
 
 class EBSAMethod(SemiSupervisedMethod):
-    def __init__(self, base_model: BaseModel, random_state: int = None):
+    def __init__(self, base_model: BaseModel, random_state: int = None, verbose: bool = False):
         super().__init__(base_model)
         self.base_model = deepcopy(base_model)
         self.rng = np.random.RandomState(random_state)
+        self.verbose = verbose
 
     def run(
         self,
@@ -51,94 +44,99 @@ class EBSAMethod(SemiSupervisedMethod):
         y_l: np.ndarray,
         X_u: np.ndarray
     ) -> Tuple[BaseModel, np.ndarray, np.ndarray]:
-        # 1) Initialisation
-        L_X = X_l.copy()
+        # --- Algorithm 4 Step 1: initialize sets L and U; high-confidence S ← ∅ ---
+        L_X = X_l.copy()        # L ← labeled data
         L_y = y_l.copy()
-        U_X = X_u.copy()
+        U_X = X_u.copy()        # U ← unlabeled data
+        # --- Algorithm 4 Step 2: train classifier H on L ---
         H = deepcopy(self.base_model)
         H.train(L_X, L_y)
-        logger.info(f"EBSA: start |L|={len(L_y)}, |U|={len(U_X)}")
+        if self.verbose:
+            logger.info(f"EBSA: start |L|={len(L_y)}, |U|={len(U_X)}")
 
-        # 2) Boucle principale
+        # --- Algorithm 4 Step 8: while not converged ---
         while True:
-            # Si plus rien à annoter, on sort
+            # stop if no unlabeled samples remain
             if U_X.shape[0] == 0:
                 break
 
-            # 3) Pseudo-étiquette
-            pseudo = H.predict(U_X)
-
-            # 4) Regrouper par étiquette
-            clusters = {}
+            # --- Algorithm 4 Step 3–6: assign pseudo-labels to U (form clusters Cₚ) ---
+            pseudo = H.predict(U_X)            # Step 3–4: y_i = H(x_i)
+            clusters = {}                      # Step 5: C_{y_i} ← C_{y_i} ∪ x_i
             for idx, lbl in enumerate(pseudo):
                 clusters.setdefault(lbl, []).append(idx)
 
-            new_indices = []
-
-            # 5) Pour chaque cluster Cp
+            # --- Algorithm 2 & 3: ball-cluster partition (EC) and high-confidence selection (SG) ---
+            new_indices = []  # will collect S = ⋃ₚ (stable region minus disputed)  [oai_citation:0‡12-2023-Fast semisupervised selftraining algorithm based on data editing.pdf](file-service://file-1D1gxQ6V9LUDavd5F48Si1)
             for lbl, idxs in clusters.items():
                 Xp = U_X[idxs]
                 if Xp.shape[0] == 0:
                     continue
 
-                # 6) Centre et distances
+                # Algorithm 2 Step 3–4: compute center and radius of cluster Cₚ
                 center = Xp.mean(axis=0)
                 dists = np.linalg.norm(Xp - center, axis=1)
                 radius = dists.max()
 
-                # 7) Voisins de centres
+                # Algorithm 2 Step 7–11: find neighbor clusters Nₚq
                 neighbor_centers = []
                 for other_lbl, other_idxs in clusters.items():
                     if other_lbl == lbl:
                         continue
                     oc = U_X[other_idxs].mean(axis=0)
-                    d_cent = np.linalg.norm(center - oc)
-                    if d_cent/2 < radius:
+                    d_cent = np.linalg.norm(center - oc)   # distance dₚq
+                    if d_cent / 2 < radius:               # if ½·dₚq < rₚ
                         neighbor_centers.append((oc, d_cent))
 
-                # 8) Rayon stable br
+                # Algorithm 2 Step 15: compute stable radius bₚᵣ = ½ · minₙ dₚq
                 if neighbor_centers:
-                    min_dist = min(d_cent for _, d_cent in neighbor_centers)
-                    br = min_dist / 2.0
+                    min_dist = min(d for _, d in neighbor_centers)
+                    b_r = min_dist / 2.0
                 else:
-                    br = radius
+                    b_r = radius
 
-                # 9) Région disputée
+                # Algorithm 2 Step 16–18: compute disputed region indices
                 disputed = set()
                 for oc, d_cent in neighbor_centers:
-                    er = d_cent / 2.0
+                    e_r = d_cent / 2.0   # er = ½·dₚq
                     d_other = np.linalg.norm(Xp - oc, axis=1)
-                    disputed.update(np.where(d_other <= er)[0].tolist())
+                    disputed.update(np.where(d_other <= e_r)[0].tolist())
 
-                # 10) Points stables
-                stable_idx = np.where(dists <= br)[0]
+                # Algorithm 2 Step 18–22: edit stable points (optional label correction)
+                stable_idx = np.where(dists <= b_r)[0]
                 for j in stable_idx:
-                    # pas besoin de réétiqueter, mais conservé pour cohérence avec article
-                    pseudo[idxs[j]] = lbl
+                    pseudo[idxs[j]] = lbl  # optionally reinforce label
 
-                # 11) Ajouter au set à étiqueter
+                # Algorithm 3 Step 3–5: select high-confidence S₀ = Xp \ disputed
                 for j in range(len(idxs)):
                     if j not in disputed:
                         new_indices.append(idxs[j])
 
             new_indices = sorted(set(new_indices))
+            # if no new high-confidence points, convergence
             if not new_indices:
                 break
 
-            # 12) MàJ L et U
+            # --- Algorithm 4 Step 11: update L ← L ∪ S ---
             X_new = U_X[new_indices]
             y_new = pseudo[new_indices]
             L_X = np.vstack([L_X, X_new])
             L_y = np.concatenate([L_y, y_new])
+
+            # remove newly labeled from U
             mask = np.ones(len(U_X), dtype=bool)
             mask[new_indices] = False
             U_X = U_X[mask]
 
-            # 13) Réentraînement
+            # --- Algorithm 4 Step 12: retrain H on updated L ---
             H = deepcopy(self.base_model)
             H.train(L_X, L_y)
-            logger.info(f"EBSA iter: added={len(new_indices)}, remaining U={len(U_X)}")
+            if self.verbose:
+                logger.info(f"EBSA iter: added={len(new_indices)}, remaining U={len(U_X)}")
 
-        logger.info(f"EBSA completed: |L|={len(L_y)}")
+        if self.verbose:
+            logger.info(f"EBSA completed: |L|={len(L_y)}")
+
+        # --- Algorithm 4 Step 14: return final classifier H and expanded L ---
         final_model = EBSAEnsemble(H)
         return final_model, L_X, L_y

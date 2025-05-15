@@ -60,7 +60,8 @@ class PoissonLearningMethod(SemiSupervisedMethod):
         self,
         graph_builder: GraphBuilder,
         T: int = 200,
-        eps_mix: float = None
+        eps_mix: float = None,
+        verbose: bool = False
     ):
         """
         :param graph_builder: builds adjacency matrix W
@@ -70,6 +71,7 @@ class PoissonLearningMethod(SemiSupervisedMethod):
         self.graph_builder = graph_builder
         self.T = T
         self.eps_mix = eps_mix
+        self.verbose = verbose
 
     def run(
         self,
@@ -114,7 +116,8 @@ class PoissonLearningMethod(SemiSupervisedMethod):
                 # optional early stopping when change is small
                 delta = np.linalg.norm((B - L.dot(U)), ord=np.inf)
                 if delta < self.eps_mix:
-                    logger.info(f"Poisson: early stop at iter {t+1}, Δ={delta:.2e}")
+                    if self.verbose:
+                        logger.info(f"Poisson: early stop at iter {t+1}, Δ={delta:.2e}")
                     break
 
         # 7) Extract unlabeled potentials f_u = U[n_l:, :]

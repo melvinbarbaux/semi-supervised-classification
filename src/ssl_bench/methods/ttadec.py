@@ -54,7 +54,8 @@ class TTADECMethod(SemiSupervisedMethod):
         self,
         learners: List[BaseModel],
         k: int = 10,
-        random_state: int = None
+        random_state: int = None,
+        verbose: bool = False
     ):
         assert len(learners) == 3, "Require three base learners"
         super().__init__(learners[0])
@@ -62,6 +63,7 @@ class TTADECMethod(SemiSupervisedMethod):
         self.learners = [deepcopy(l) for l in learners]
         self.k = k
         self.rng = np.random.RandomState(random_state)
+        self.verbose = verbose
 
     def run(
         self,

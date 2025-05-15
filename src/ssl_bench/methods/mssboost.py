@@ -30,8 +30,8 @@ class EnsembleMSSBoost(BaseModel):
 
     def predict(self, X: np.ndarray) -> np.ndarray:
         proba_sum = sum(
-            α * clf.predict_proba(X)
-            for clf, α in zip(self.learners, self.alphas)
+            alpha * clf.predict_proba(X)
+            for clf, alpha in zip(self.learners, self.alphas)
         )
         return proba_sum.argmax(axis=1)
 
@@ -49,12 +49,14 @@ class MSSBoostMethod(SemiSupervisedMethod):
         n_estimators: int = 20,
         lambda_u: float = 0.1,
         gamma: float = 0.5,           # for the RBF kernel
+        verbose: bool = False
     ):
         super().__init__(base_model)
         self.base_model   = base_model
         self.n_estimators = n_estimators
         self.lambda_u     = lambda_u
         self.gamma        = gamma
+        self.verbose       = verbose
 
     def run(
         self,
@@ -68,11 +70,13 @@ class MSSBoostMethod(SemiSupervisedMethod):
         U_img   = X_u.copy()
 
         nL, nU = len(L_y), len(U_img)
-        logger.info(f"MSSBoost start: |L|={nL}, |U|={nU}, T={self.n_estimators}, lambda_u={self.lambda_u:.3f}, gamma={self.gamma:.3f}")
+        if self.verbose:
+            logger.info(f"MSSBoost start: |L|={nL}, |U|={nU}, T={self.n_estimators}, lambda_u={self.lambda_u:.3f}, gamma={self.gamma:.3f}")
 
         n_classes = int(np.unique(L_y).size)
         
-        logger.info(f"  • Labeled X shape = {L_X_img.shape}, Unlabeled X shape = {U_img.shape}")
+        if self.verbose:
+            logger.info(f"  • Labeled X shape = {L_X_img.shape}, Unlabeled X shape = {U_img.shape}")
 
         # 2) Flatten for RBF kernel and sklearn wrappers
         L_flat = L_X_img.reshape(nL, -1)
@@ -86,13 +90,15 @@ class MSSBoostMethod(SemiSupervisedMethod):
             weighted = np.einsum('ijk,kl,ijl->ij', diffs, A_mat, diffs)
             return np.exp(-weighted)
         S_LU = compute_similarity(L_flat, U_flat, A)
-        logger.info(f"  • Initial similarity computed with A=I: S_LU shape = {S_LU.shape}")
+        if self.verbose:
+            logger.info(f"  • Initial similarity computed with A=I: S_LU shape = {S_LU.shape}")
 
         learners: List[BaseModel] = []
         alphas:   List[float]     = []
 
         for t in range(self.n_estimators):
-            logger.info(f"MSSBoost iter {t+1}/{self.n_estimators} - computing weights and metric")
+            if self.verbose:
+                logger.info(f"MSSBoost iter {t+1}/{self.n_estimators} - computing weights and metric")
 
             # 3) Compute weights w_i (Eq.14)
             f_L = self._ensemble_score(L_X_img, learners, alphas, n_classes)
@@ -151,8 +157,9 @@ class MSSBoostMethod(SemiSupervisedMethod):
             diagA_clipped = np.clip(diagA, 0.0, None)
             np.fill_diagonal(A, diagA_clipped)
             S_LU = compute_similarity(L_flat, U_flat, A)
-            logger.info(f"  • Metric updated (beta={beta:.4f}), updated A diagonal first entries: {np.diag(A)[:5]}")
-            logger.info(f"  • After metric update: first diag(A) entries: {np.diag(A)[:5]}")
+            if self.verbose:
+                logger.info(f"  • Metric updated (beta={beta:.4f}), updated A diagonal first entries: {np.diag(A)[:5]}")
+                logger.info(f"  • After metric update: first diag(A) entries: {np.diag(A)[:5]}")
 
             # 5) Pseudo-labels
             if learners:
@@ -170,7 +177,8 @@ class MSSBoostMethod(SemiSupervisedMethod):
             ])
             # Replace any NaN or infinite sample weights with zero
             sample_w = np.nan_to_num(sample_w, nan=0.0, posinf=0.0, neginf=0.0)
-            logger.info(f"  • Training set size = {X_train_img.shape[0]}, sample_weights sum = {sample_w.sum():.3f}")
+            if self.verbose:
+                logger.info(f"  • Training set size = {X_train_img.shape[0]}, sample_weights sum = {sample_w.sum():.3f}")
 
             # 7) Train g_t
             clf = deepcopy(self.base_model)
@@ -182,17 +190,19 @@ class MSSBoostMethod(SemiSupervisedMethod):
                 # torch wrapper
                 clf.train(X_train_img, y_train)
 
-            # 8) α_t (Eq.16)
+            # 8) alpha_t (Eq.16)
             preds_L = clf.predict(L_X_img)
             err_t   = np.sum(w_i * (preds_L != L_y)) / (w_i.sum() + 1e-12)
             alpha_t = 0.5 * np.log((1 - err_t) / (err_t + 1e-12))
-            logger.info(f"  • err_t={err_t:.3f} → α_t={alpha_t:.3f}")
-            logger.info(f"  • Appending classifier {t+1}, alpha={alpha_t:.3f}")
+            if self.verbose:
+                logger.info(f"  • err_t={err_t:.3f} → alpha_t={alpha_t:.3f}")
+                logger.info(f"  • Appending classifier {t+1}, alpha={alpha_t:.3f}")
 
             learners.append(clf)
             alphas.append(alpha_t)
 
-        logger.info(f"MSSBoost completed: total learners={len(learners)}, original labeled used={nL}")
+        if self.verbose:
+            logger.info(f"MSSBoost completed: total learners={len(learners)}, original labeled used={nL}")
         # 9) Final model
         final_model = EnsembleMSSBoost(learners, alphas)
         return final_model, L_X_img, L_y
@@ -207,6 +217,6 @@ class MSSBoostMethod(SemiSupervisedMethod):
         if not learners:
             return np.zeros((len(X), n_classes))
         return sum(
-            α * clf.predict_proba(X)
-            for clf, α in zip(learners, alphas)
+            alpha * clf.predict_proba(X)
+            for clf, alpha in zip(learners, alphas)
         )
