@@ -2,16 +2,16 @@ from abc import ABC, abstractmethod
 
 class SemiSupervisedMethod(ABC):
     """
-    Interface pour une méthode d'apprentissage semi-supervisé.
-    Chaque implémentation orchestrera l'utilisation d'un BaseModel
-    pour entraîner sur les données étiquetées et exploiter les non-étiquetées.
+    Interface for a semi-supervised learning method.
+    Each implementation will orchestrate the use of a BaseModel
+    to train on labeled data and leverage unlabeled data.
     """
 
     def __init__(self, model, threshold: float = 0.8, max_iter: int = 10):
         """
-        :param model: instance de BaseModel
-        :param threshold: confiance minimale pour ajouter un pseudo-label
-        :param max_iter: nombre maximum d'itérations
+        :param model: an instance of BaseModel
+        :param threshold: minimum confidence required to add a pseudo-label
+        :param max_iter: maximum number of iterations
         """
         self.model = model
         self.threshold = threshold
@@ -20,10 +20,11 @@ class SemiSupervisedMethod(ABC):
     @abstractmethod
     def run(self, X_l, y_l, X_u):
         """
-        Lance la méthode semi-supervisée.
-        :param X_l: array (n_labeled, n_features)
-        :param y_l: array (n_labeled,)
-        :param X_u: array (n_unlabeled, n_features)
-        :returns: typiquement (trained_model, X_l_final, y_l_final)
+        Execute the semi-supervised method.
+        
+        :param X_l: numpy array of shape (n_labeled, n_features), labeled inputs
+        :param y_l: numpy array of shape (n_labeled,), labeled targets
+        :param X_u: numpy array of shape (n_unlabeled, n_features), unlabeled inputs
+        :returns: typically a tuple (trained_model, X_l_final, y_l_final)
         """
         pass

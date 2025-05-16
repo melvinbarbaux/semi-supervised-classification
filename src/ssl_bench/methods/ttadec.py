@@ -1,4 +1,8 @@
-# src/ssl_bench/methods/ttadec.py
+"""
+TTADEC: Tri-Training with Adaptive Density Editing and Cross-Entropy Evaluation.
+Jia Zhao, Yuhang Luo, Renbin Xiao, Runxiu Wu & Tanghuai Fan
+"""
+
 import numpy as np
 from copy import deepcopy
 from typing import List, Tuple, Any
@@ -18,9 +22,6 @@ if not logger.handlers:
     logger.addHandler(ch)
 
 class TTADECEnsemble(BaseModel):
-    """
-    Final ensemble for TTADEC: weighted majority voting of three base learners.
-    """
     def __init__(self, learners: List[BaseModel], alphas: List[float]):
         self.learners = learners
         self.alphas = alphas
@@ -46,10 +47,6 @@ class TTADECEnsemble(BaseModel):
         return np.sum(stacked, axis=2) / sum(self.alphas)
 
 class TTADECMethod(SemiSupervisedMethod):
-    """
-    Tri-Training with Adaptive Density Editing and Cross-Entropy Evaluation (TTADEC).
-    Based on Adaptive Nearest Neighbor Density Editing and Cross-Entropy Evaluation.
-    """
     def __init__(
         self,
         learners: List[BaseModel],

@@ -1,3 +1,8 @@
+"""
+Gaussian Fields & Harmonic Functions
+Zhu & al., 2003
+"""
+
 import numpy as np
 import logging
 from typing import Tuple
@@ -16,11 +21,6 @@ if not logger.handlers:
     logger.addHandler(ch)
 
 class GFHFModel(BaseModel):
-    """
-    Gaussian Fields & Harmonic Functions (Zhu et al., 2003) result wrapper.
-    Stores labels for the full dataset (labeled + unlabeled) and provides
-    predict / predict_proba for the unlabeled portion.
-    """
     def __init__(self, preds_all: np.ndarray, n_labeled: int, classes: np.ndarray):
         self.preds_all = preds_all
         self.n_labeled = n_labeled
@@ -47,11 +47,6 @@ class GFHFModel(BaseModel):
         return probs
 
 class GFHFMethod(SemiSupervisedMethod):
-    """
-    Implementation of Gaussian Fields & Harmonic Functions (Zhu et al., 2003).
-    Builds a graph, computes the combinatorial Laplacian, solves the harmonic
-    solution for unlabeled nodes via closed-form linear system.
-    """
     def __init__(self, graph_builder: GraphBuilder, verbose: bool = False):
         super().__init__(None)
         self.graph_builder = graph_builder

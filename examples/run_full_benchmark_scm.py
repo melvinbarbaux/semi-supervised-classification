@@ -24,7 +24,7 @@ from ssl_bench.methods.setred                  import SetredMethod
 from ssl_bench.methods.tri_training            import TriTrainingMethod
 from ssl_bench.methods.democratic_co_learning  import DemocraticCoLearningMethod
 from ssl_bench.methods.mssboost                import MSSBoostMethod
-from ssl_bench.methods.dash                    import DashMethod
+from ssl_bench.methods.adsh                    import AdaptiveThresholdingMethod
 from ssl_bench.methods.ebsa                    import EBSAMethod
 
 # Graph-based
@@ -160,9 +160,17 @@ def main():
     cnn_base = resnet18(weights=None, num_classes=10).to(device)
     base_model = TorchModel(net=cnn_base, lr=1e-3, epochs=10, batch_size=32)
 
-    # 4) Methods definitions (exemple EBSA seulement)
+    # 4) Classical SSL methods factory
     classical = {
-        "ebsa": (lambda m: EBSAMethod(m, random_state=seed), {'random_state': seed})
+#        "supervised":    lambda m: SupervisedMethod(m),
+#        "self_training": lambda m: SelfTrainingMethod(m, threshold=0.8, max_iter=5),
+        "adsh":          lambda m: AdaptiveThresholdingMethod(m, mu=1.0, tau1=0.8, max_iter=10),
+#        "setred":        lambda m: SetredMethod(m, theta=0.1, max_iter=10, n_neighbors=15, random_state=seed),
+#        "tri_training":  lambda m: TriTrainingMethod(m, random_state=seed),
+#        "democratic":    lambda m: DemocraticCoLearningMethod([m, m, m], alpha=0.05, random_state=seed),
+#        "mssboost":      lambda m: MSSBoostMethod(m, n_estimators=10, lambda_u=0.1),
+#        "ebsa":          lambda m: EBSAMethod(m, random_state=seed),
+#        "ttadec":        lambda m: TTADECMethod([m, m, m])
     }
 
     runner   = ExperimentRunner()
@@ -170,7 +178,7 @@ def main():
     results  = []
 
     # 5) Run classical methods
-    for name, (factory, hyper) in classical.items():
+    for name, factory in classical.items():
         method_label = f"{name}_ResNet"
         method = factory(deepcopy(base_model))
         cfg = ExperimentConfig(
@@ -180,7 +188,7 @@ def main():
             labeled_fraction=frac,
             seed=seed,
             model_hyperparams={'lr': 1e-3, 'epochs': 10, 'batch_size': 32},
-            method_hyperparams=hyper
+            method_hyperparams={}
         )
 
         def eval_fn(cfg):
@@ -205,8 +213,8 @@ def main():
 
     graph_builders = {
         "kNN":    KNNGraph(n_neighbors=3, mode="connectivity"),
-        "eps":    EpsilonGraph(eps=1.5, mode="connectivity"),
-        "anchor": AnchorGraph(n_anchors=10, sigma=None, random_state=seed)
+    #    "eps":    EpsilonGraph(eps=1.5, mode="connectivity"),
+    #    "anchor": AnchorGraph(n_anchors=10, sigma=None, random_state=seed)
     }
 
     for cls, method_cls in [(GFHFMethod, 'GFHF'), (PoissonLearningMethod, 'Poisson')]:

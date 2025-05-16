@@ -14,10 +14,9 @@ from ssl_bench.models.sklearn import RandomForestWrapper
 from ssl_bench.methods.supervised import SupervisedMethod
 from ssl_bench.methods.self_training import SelfTrainingMethod
 from ssl_bench.methods.setred import SetredMethod
-from ssl_bench.methods.snnrce import SnnrceMethod
 from ssl_bench.methods.tri_training import TriTrainingMethod
 from ssl_bench.methods.democratic_co_learning import DemocraticCoLearningMethod
-from ssl_bench.methods.dash import DashMethod  # ← Dash importé
+from ssl_bench.methods.adsh import AdaptiveThresholdingMethod
 
 class SyntheticLoader(DatasetLoader):
     def load(self):
@@ -60,13 +59,6 @@ def train_and_eval(config: ExperimentConfig) -> tuple[Any, dict]:
             n_neighbors=config.method_hyperparams.get("n_neighbors", 10),
             random_state=config.seed
         )
-    elif m == "snnrce":
-        method = SnnrceMethod(
-            rf,
-            n_neighbors=config.method_hyperparams.get("n_neighbors", 10),
-            alpha=config.method_hyperparams.get("alpha", 0.05),
-            random_state=config.seed
-        )
     elif m == "tri_training":
         method = TriTrainingMethod(deepcopy(rf))
     elif m == "democratic_co_learning":
@@ -76,8 +68,8 @@ def train_and_eval(config: ExperimentConfig) -> tuple[Any, dict]:
             alpha=config.method_hyperparams.get("alpha", 0.05),
             random_state=config.seed
         )
-    elif m == "dash":
-        method = DashMethod(
+    elif m == "adsh":
+        method = AdaptiveThresholdingMethod(
             deepcopy(rf),
             C=config.method_hyperparams.get("C", 1.0001),
             gamma=config.method_hyperparams.get("gamma", 1.1),
@@ -107,7 +99,7 @@ def main():
         "snnrce",
         "tri_training",
         "democratic_co_learning",
-        "dash"   # ← on ajoute Dash ici
+        "adsh"
     ]
     fractions = [0.1, 0.3, 0.5]
     seeds = [0, 1]
@@ -116,10 +108,9 @@ def main():
     rf_params       = [{"n_estimators":10}, {"n_estimators":50}]
     st_params       = [{"threshold":0.7,"max_iter":3}, {"threshold":0.9,"max_iter":5}]
     setred_params   = [{"theta":0.1,"max_iter":5,"pool_size":None,"n_neighbors":10}]
-    snnrce_params   = [{"n_neighbors":10,"alpha":0.05}]
     tri_params      = [{}]
     dcl_params      = [{"alpha":0.05}]
-    dash_params     = [{"C":1.0001,"gamma":1.1,"rho_min":0.0,"max_iter":10}]
+    adsh_params     = [{"C":1.0001,"gamma":1.1,"rho_min":0.0,"max_iter":10}]
 
     records = []
     for m in methods:
@@ -131,14 +122,12 @@ def main():
                     mp_list, mhp_list = rf_params, st_params
                 elif m == "setred":
                     mp_list, mhp_list = rf_params, setred_params
-                elif m == "snnrce":
-                    mp_list, mhp_list = rf_params, snnrce_params
                 elif m == "tri_training":
                     mp_list, mhp_list = rf_params, tri_params
                 elif m == "democratic_co_learning":
                     mp_list, mhp_list = rf_params, dcl_params
-                elif m == "dash":
-                    mp_list, mhp_list = rf_params, dash_params
+                elif m == "adsh":
+                    mp_list, mhp_list = rf_params, adsh_params
                 else:
                     continue
 

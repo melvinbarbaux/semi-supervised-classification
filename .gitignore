@@ -49,3 +49,8 @@ poetry.lock
 # Systèmes d'exploitation
 # ------------------------
 .DS_Store
+
+# ------------------------
+# Results
+# ------------------------
+results/

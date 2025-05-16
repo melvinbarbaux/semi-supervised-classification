@@ -48,7 +48,7 @@ class MSSBoostMethod(SemiSupervisedMethod):
         base_model: BaseModel,
         n_estimators: int = 20,
         lambda_u: float = 0.1,
-        gamma: float = 0.5,           # for the RBF kernel
+        gamma: float = 0.5,
         verbose: bool = False
     ):
         super().__init__(base_model)

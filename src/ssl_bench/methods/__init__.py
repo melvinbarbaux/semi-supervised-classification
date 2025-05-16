@@ -6,7 +6,7 @@ from .self_training import SelfTrainingMethod
 from .setred import SetredMethod
 from .tri_training import TriTrainingMethod
 from .democratic_co_learning import DemocraticCoLearningMethod
-from .dash import DashMethod
+from .adsh import AdaptiveThresholdingMethod
 from .mssboost import MSSBoostMethod
 from .poisson_learning import PoissonLearningMethod
 from .gfhf import GFHFMethod
@@ -21,7 +21,7 @@ __all__ = [
     "SetredMethod",
     "TriTrainingMethod",
     "DemocraticCoLearningMethod",
-    "DashMethod",
+    "AdaptiveThresholdingMethod",
     "MSSBoostMethod",
     "EBSAMethod",
     "TTADECMethod"

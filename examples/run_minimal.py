@@ -14,7 +14,7 @@ from ssl_bench.methods.setred import SetredMethod
 from ssl_bench.methods.tri_training import TriTrainingMethod
 from ssl_bench.methods.democratic_co_learning import DemocraticCoLearningMethod
 from ssl_bench.methods.mssboost import MSSBoostMethod
-from ssl_bench.methods.dash import DashMethod
+from ssl_bench.methods.adsh import AdaptiveThresholdingMethod
 from ssl_bench.methods.ebsa import EBSAMethod
 from ssl_bench.methods.ttadec import TTADECMethod
 
@@ -99,7 +99,7 @@ def main():
         ("setred",        SetredMethod),
         ("tri_training",  TriTrainingMethod),
         ("democratic",    DemocraticCoLearningMethod),
-        ("dash",          DashMethod),
+        ("adsh",          AdaptiveThresholdingMethod),
 #        ("mssboost",      MSSBoostMethod),
         ("ebsa",          EBSAMethod),
         ("ttadec",        TTADECMethod),
@@ -123,7 +123,7 @@ def main():
             elif name == "democratic":
                 learners = [deepcopy(base) for _ in range(3)]
                 method = MethodCls(learners, alpha=0.05, random_state=42)
-            elif name == "dash":
+            elif name == "adsh":
                 method = MethodCls(
                     deepcopy(base),
                     C=1.0001, gamma=1.1, rho_min=0.05, max_iter=5

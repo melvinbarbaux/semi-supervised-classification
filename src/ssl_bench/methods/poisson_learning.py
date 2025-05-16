@@ -1,4 +1,8 @@
-# src/ssl_bench/methods/poisson_learning.py
+"""
+Poisson Learning model
+Calder et al., 2020
+"""
+
 import numpy as np
 import logging
 from typing import Tuple
@@ -18,10 +22,6 @@ if not logger.handlers:
 
 
 class PoissonModel(BaseModel):
-    """
-    Poisson Learning model (Calder et al., 2020).
-    Stores learned potentials for unlabeled nodes and provides predict / predict_proba.
-    """
     def __init__(self, f_u: np.ndarray, classes: np.ndarray):
         # f_u: array of shape (n_u, n_classes)
         self.f_u = f_u
