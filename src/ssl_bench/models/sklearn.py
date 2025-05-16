@@ -1,40 +1,40 @@
 import numpy as np
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.svm import SVC
+from sklearn.base import BaseEstimator
 from .base import BaseModel
 
 class SklearnModel(BaseModel):
     """
-    Wrapper générique pour classifieurs scikit-learn.
-    Implémente train, predict et predict_proba via le classifieur sous-jacent.
+    Generic wrapper for any scikit-learn classifier. 
+    Accepts optional sample_weight to weight pseudo-labels.
     """
-    def __init__(self, clf):
+    def __init__(self, clf: BaseEstimator):
         self.clf = clf
 
-    def train(self, X_l, y_l, X_u=None):
-        # X_u (non étiquetées) est ignoré par les classifieurs purement supervisés
-        self.clf.fit(X_l, y_l)
+    def train(
+        self,
+        X_l: np.ndarray,
+        y_l: np.ndarray,
+        sample_weight: np.ndarray = None
+    ) -> None:
+        """
+        If sample_weight is None → pure supervised.
+        Else → fit on the combined dataset with those weights.
+        """
+        if sample_weight is None:
+            self.clf.fit(X_l, y_l)
+        else:
+            # X_l and y_l already _include_ pseudo-labels appended, 
+            # and sample_weight aligns to that concatenation.
+            self.clf.fit(X_l, y_l, sample_weight=sample_weight)
 
-    def predict(self, X):
+    def predict(self, X: np.ndarray) -> np.ndarray:
         return self.clf.predict(X)
 
-    def predict_proba(self, X):
-        # si predict_proba existe, on l'utilise
-        if hasattr(self.clf, 'predict_proba'):
+    def predict_proba(self, X: np.ndarray) -> np.ndarray:
+        if hasattr(self.clf, "predict_proba"):
             return self.clf.predict_proba(X)
-        # sinon on fait un softmax sur decision_function
+        # fallback on decision_function + softmax
         scores = self.clf.decision_function(X)
-        # stabilisation numérique
         scores = scores - scores.max(axis=1, keepdims=True)
-        exp_scores = np.exp(scores)
-        return exp_scores / exp_scores.sum(axis=1, keepdims=True)
-
-class RandomForestWrapper(SklearnModel):
-    """Classifieur Forêt aléatoire."""
-    def __init__(self, **kwargs):
-        super().__init__(RandomForestClassifier(**kwargs))
-
-class SVMWrapper(SklearnModel):
-    """Classifieur SVM avec probabilités."""
-    def __init__(self, probability=True, **kwargs):
-        super().__init__(SVC(probability=probability, **kwargs))
+        exp   = np.exp(scores)
+        return exp / exp.sum(axis=1, keepdims=True)

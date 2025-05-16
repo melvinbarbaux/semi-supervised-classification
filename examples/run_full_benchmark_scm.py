@@ -164,7 +164,7 @@ def main():
     classical = {
 #        "supervised":    lambda m: SupervisedMethod(m),
 #        "self_training": lambda m: SelfTrainingMethod(m, threshold=0.8, max_iter=5),
-        "adsh":          lambda m: AdaptiveThresholdingMethod(m, mu=1.0, tau1=0.8, max_iter=10),
+        "adsh": lambda m: AdaptiveThresholdingMethod(m, tau1=0.8, max_iter=10, lambda_u=1.0, random_state=seed),
 #        "setred":        lambda m: SetredMethod(m, theta=0.1, max_iter=10, n_neighbors=15, random_state=seed),
 #        "tri_training":  lambda m: TriTrainingMethod(m, random_state=seed),
 #        "democratic":    lambda m: DemocraticCoLearningMethod([m, m, m], alpha=0.05, random_state=seed),
