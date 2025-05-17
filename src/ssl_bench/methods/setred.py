@@ -5,6 +5,7 @@ Ming Li & Zhi-Hua Zhou, 2005.
 
 import numpy as np
 import logging
+import math
 from copy import deepcopy
 from typing import Tuple, Optional
 
@@ -121,13 +122,27 @@ class SetredMethod(SemiSupervisedMethod):
                                  n_neighbors=self.n_neighbors+1,
                                  include_self=False).tolil()
 
-            # compute cut-edge ratio for each candidate
+            # 3c’) Full statistical test on Ji under H0 with µi, σ²i (Eq. 2–4)
+            classes_L, counts_L = np.unique(L_y, return_counts=True)
+            total_L = len(L_y)
+            P_hat = {cls: cnt / total_L for cls, cnt in zip(classes_L, counts_L)}
+
             start = len(L_feat)
             keep = []
             for j in range(start, start + len(cand_feats)):
-                neighs = [n for n in A.rows[j] if n != j][: self.n_neighbors]
-                cut = np.sum(y_all[neighs] != y_all[j])
-                if cut / self.n_neighbors <= self.theta:
+                neighs = [n for n in A.rows[j] if n != j][:self.n_neighbors]
+                # Observed cut‐edge weight Ji
+                Ji = np.sum(y_all[neighs] != y_all[j])
+                k = len(neighs)
+                cls = y_all[j]
+                p_cls = P_hat.get(cls, 0.0)
+                # mean and std under H0
+                mu = (1 - p_cls) * k
+                sigma = math.sqrt(p_cls * (1 - p_cls) * k)
+                # z-score and left-tail p-value
+                z = (Ji - mu) / (sigma if sigma > 0 else 1e-8)
+                p_value = 0.5 * (1 + math.erf(z / math.sqrt(2)))
+                if p_value <= self.theta:
                     keep.append(j - start)
 
             if not keep:

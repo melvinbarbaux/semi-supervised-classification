@@ -11,6 +11,7 @@ from sklearn.model_selection import train_test_split
 import torch
 import logging
 import time
+import timm
 import resource
 
 from ssl_bench.experiment import ExperimentRunner, ExperimentConfig
@@ -36,10 +37,10 @@ from ssl_bench.datamodule.graph.anchor         import AnchorGraph
 
 # Torch wrapper and model
 from ssl_bench.models.torch_model import TorchModel
-from torchvision.models import resnet18
+from torchvision.models import resnet18, densenet121
 
 # Configurable parameters
-LOAD_PERCENT = 1  # pourcentage de données CIFAR-10 à charger (1-100)
+LOAD_PERCENT = 5  # pourcentage de données CIFAR-10 à charger (1-100)
 
 def split_dataset(X, y, fraction, seed, flatten=False):
     """Split data into labeled and unlabeled subsets."""
@@ -157,6 +158,15 @@ def main():
     # 3) Base CNN setup
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     logger.info("Using device %s", device)
+
+    # Base classifiers factories
+    base_factories = {
+        "ResNet18":       lambda: resnet18(weights=None, num_classes=10),
+        "wide_resnet50_2": lambda: timm.create_model('wide_resnet50_2', pretrained=False, num_classes=10),
+        "DenseNet121":    lambda: densenet121(weights=None, num_classes=10),
+    }
+
+    # cnn_base for graph-based methods
     cnn_base = resnet18(weights=None, num_classes=10).to(device)
     base_model = TorchModel(net=cnn_base, lr=1e-3, epochs=10, batch_size=32)
 
@@ -164,12 +174,21 @@ def main():
     classical = {
 #        "supervised":    lambda m: SupervisedMethod(m),
 #        "self_training": lambda m: SelfTrainingMethod(m, threshold=0.8, max_iter=5),
-        "adsh": lambda m: AdaptiveThresholdingMethod(m, tau1=0.8, max_iter=10, lambda_u=1.0, random_state=seed),
+#        "adsh": lambda m: AdaptiveThresholdingMethod(m, tau1=0.8, max_iter=10, lambda_u=1.0, random_state=seed),
 #        "setred":        lambda m: SetredMethod(m, theta=0.1, max_iter=10, n_neighbors=15, random_state=seed),
-#        "tri_training":  lambda m: TriTrainingMethod(m, random_state=seed),
-#        "democratic":    lambda m: DemocraticCoLearningMethod([m, m, m], alpha=0.05, random_state=seed),
-#        "mssboost":      lambda m: MSSBoostMethod(m, n_estimators=10, lambda_u=0.1),
 #        "ebsa":          lambda m: EBSAMethod(m, random_state=seed),
+#        "tri_training":  lambda m: TriTrainingMethod(m, random_state=seed),
+#        "democratic":    lambda _: DemocraticCoLearningMethod(
+            [
+                TorchModel(net=base_factories["ResNet18"]().to(device),    lr=1e-3, epochs=10, batch_size=32),
+                TorchModel(net=base_factories["wide_resnet50_2"]().to(device), lr=1e-3, epochs=10, batch_size=32),
+                TorchModel(net=base_factories["DenseNet121"]().to(device), lr=1e-3, epochs=10, batch_size=32),
+            ],
+            alpha=0.05,
+            random_state=seed,
+            verbose=True
+        ),
+#        "mssboost":      lambda m: MSSBoostMethod(m, n_estimators=10, lambda_u=0.1),
 #        "ttadec":        lambda m: TTADECMethod([m, m, m])
     }
 
@@ -179,11 +198,11 @@ def main():
 
     # 5) Run classical methods
     for name, factory in classical.items():
-        method_label = f"{name}_ResNet"
-        method = factory(deepcopy(base_model))
+        method_label = f"{name}_cnn"
+        method = factory(None)
         cfg = ExperimentConfig(
             method=method_label,
-            model="ResNet18",
+            model="CNN",
             dataset=f"CIFAR10_{int(frac*100)}pct_CNN",
             labeled_fraction=frac,
             seed=seed,
